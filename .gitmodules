@@ -1,0 +1,3 @@
+[submodule "PINNsNTK"]
+	path = PINNsNTK
+	url = git@github.com:PredictiveIntelligenceLab/PINNsNTK.git
