@@ -12,10 +12,14 @@ def set_random_state(seed):
 class PINN(nn.Module):
     
     def __init__(self, no_of_h_layers, no_of_neurons, input_dim=1, 
-                 seed=1):
+                 seed=1, mean=0.0, std=1.0):
         super().__init__()
         set_random_state(seed)
-        
+        # parameters for normalizing the input to network
+            # This has to come from a dataset and should be user-specified
+        self.mu = mean
+        self.sigma = std
+        # Constructing the layers
         layers = nn.ModuleList()
         # Input layer
         layer0 = nn.Linear(input_dim, no_of_neurons)
@@ -40,8 +44,14 @@ class PINN(nn.Module):
             
             if module.bias is not None:
                 module.bias.data.normal_(mean=0.0, std=1.0)
+                
+    def normalize(self, x):
+        x = (x - self.mu) / self.sigma
+        return x
 
     def forward(self, x):
+        """Normalizes input and then feeds it to network."""
+        x = self.normalize(x)
         for layer in self.layers:
-            x = layer(x)          
+            x = layer(x)         
         return x

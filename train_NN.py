@@ -58,6 +58,7 @@ def train_nn_model(model: torch.nn.Module, train_data: tuple,
         train_data
             A tuple (Boundary input, Bounday ground truth, Residual input,
                     residual ground truth)
+                    each is a numpy array
         no_iterations
             Maximum number of epochs to train for [Assuming full batch]
         device
@@ -77,19 +78,11 @@ def train_nn_model(model: torch.nn.Module, train_data: tuple,
     """
     # Save model at initialization - for data analysis
     save_model(model, 0, save_data_location)
-    
-    X_u, Y_u, X_r, Y_r = train_data   
-    # Normalize the inputs - X_u and X_r - (n_data_points, dimension)
-    mean = X_r.mean(axis=0)  # (1, dim) values
-    std = X_r.std(axis=0)  # (1, dim) values   
-    X_u_normal = (X_u - mean) / std
-    X_r_normal = (X_r - mean) / std
-    # Outputs are not normalized
+           
     # Convert data to Pytorch tensors requiring gradient
-    X_u_normal_tor = torch.tensor(X_u_normal, 
-                                  requires_grad=True).to(device)
-    X_r_normal_tor = torch.tensor(X_r_normal, 
-                                  requires_grad=True).to(device)
+    X_u, Y_u, X_r, Y_r = train_data
+    X_u = torch.tensor(X_u, requires_grad=True).to(device)
+    X_r = torch.tensor(X_r, requires_grad=True).to(device)
     Y_u_tor = torch.tensor(Y_u).to(device)
     Y_r_tor = torch.tensor(Y_r).to(device)
     # TODO: Should we do mini-batching - Not yet!
@@ -108,13 +101,13 @@ def train_nn_model(model: torch.nn.Module, train_data: tuple,
                            }
     for itr in range(no_iterations):
         # feed data to network
-        Y_u_pred = model(X_u_normal_tor)  # (no_of_points, 1)
+        Y_u_pred = model(X_u)  # (no_of_points, 1)
         
         if itr % save_data_frequency == 0:
             J_u = utilities.calculate_j_u(model, Y_u_pred)
             
-        Y_r_pred = model(X_r_normal_tor)
-        residual = calculate_residual(Y_r_pred, X_r_normal_tor)
+        Y_r_pred = model(X_r)
+        residual = calculate_residual(Y_r_pred, X_r)
         
         if itr % save_data_frequency == 0:
             J_r = utilities.calculate_j_r(model, residual)
