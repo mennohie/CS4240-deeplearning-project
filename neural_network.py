@@ -26,14 +26,14 @@ class PINN(nn.Module):
         # Output layer
         final_layer = nn.Linear(no_of_neurons, 1)
         layers.append(final_layer)
-        self.layers=layers
+        self.layers = layers
         
         # Initialize the layer weights - Applies it recursively
         self.apply(self._init_weights)
      
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
-            layer_shape = module.weight.shape # (n_out_features, no_in_features)
+            layer_shape = module.weight.shape  # (n_out_features, no_in_features)
             in_dim = layer_shape[1]
             std = 1. / np.sqrt(in_dim)
             module.weight.data.normal_(mean=0.0, std=std)
