@@ -28,7 +28,7 @@ def calculate_j_u(model, Y_u_pred):
     return J_u
 
 
-def calculate_j_r(model, residual):
+def calculate_j_r(model, residual, device):
     """Calculates the jacobian of the residual w.r.t. model parameters.
     model
         Pytorch neural network model
@@ -46,7 +46,7 @@ def calculate_j_r(model, residual):
             if param.grad is not None:
                 g_flat.append(param.grad.view(-1))
             else:
-                g_flat.append(torch.zeros(size=param.size()).view(-1))
+                g_flat.append(torch.zeros(size=param.size(), device=device).view(-1))
         g_flat = torch.cat(g_flat)
         J_r[:, ind] = g_flat 
     return J_r

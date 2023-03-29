@@ -3,7 +3,8 @@ import torch
 import utilities
 import pickle
 
-def save_model(model: torch.nn.Module, itr: int, 
+
+def save_model(model: torch.nn.Module, itr: int,
                save_data_location: str):
     """ Saves model parameters as list to the hard disk.
     model
@@ -16,9 +17,8 @@ def save_model(model: torch.nn.Module, itr: int,
     param_list = []
     for param in model.parameters():
         param_list.append(param.view(-1))
-    param_list = torch.cat(param_list).detach().numpy()
-    pickle.dump(param_list, open("{}/Theta_{}.p".format(save_data_location,
-                                           itr), 'wb'))
+    param_list = torch.cat(param_list).detach().cpu().numpy()
+    pickle.dump(param_list, open(f"{save_data_location}/Theta_{itr}.p", 'wb'))
     return None
 
 
@@ -30,23 +30,23 @@ def calculate_residual(Y, X):
         Input to the network
     """
     u_x_val = torch.autograd.grad(
-                Y, X,
-                grad_outputs=torch.ones_like(Y),
-                retain_graph=True,
-                create_graph=True
-                )[0]
+        Y, X,
+        grad_outputs=torch.ones_like(Y),
+        retain_graph=True,
+        create_graph=True
+    )[0]
     u_xx_val = torch.autograd.grad(
-                u_x_val, X,
-                grad_outputs=torch.ones_like(u_x_val),
-                retain_graph=True,
-                create_graph=True
-                )[0]
+        u_x_val, X,
+        grad_outputs=torch.ones_like(u_x_val),
+        retain_graph=True,
+        create_graph=True
+    )[0]
     return u_xx_val
-    
-    
+
+
 # Training function
-def train_nn_model(model: torch.nn.Module, train_data: tuple, 
-                   no_iterations: int, device, 
+def train_nn_model(model: torch.nn.Module, train_data: tuple,
+                   no_iterations: int, device,
                    optimizer_details: dict = {'opt': 'sgd', 'lr': 1e-5},
                    save_data_location: str = '.',
                    save_data_frequency: int = 100):
@@ -78,7 +78,10 @@ def train_nn_model(model: torch.nn.Module, train_data: tuple,
     """
     # Save model at initialization - for data analysis
     save_model(model, 0, save_data_location)
-           
+
+    # Return to cuda if needed
+    model.to(device)
+
     # Convert data to Pytorch tensors requiring gradient
     X_u, Y_u, X_r, Y_r = train_data
     X_u = torch.tensor(X_u, requires_grad=True).to(device)
@@ -86,50 +89,50 @@ def train_nn_model(model: torch.nn.Module, train_data: tuple,
     Y_u_tor = torch.tensor(Y_u).to(device)
     Y_r_tor = torch.tensor(Y_r).to(device)
     # TODO: Should we do mini-batching - Not yet!
-    
+
     # Start training loop - assuming full-batch
     if optimizer_details['opt'] == 'sgd':
-        optimizer = torch.optim.SGD(model.parameters(), 
+        optimizer = torch.optim.SGD(model.parameters(),
                                     lr=optimizer_details['lr'])
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer,
                                                            gamma=0.9)
     else:
         raise NotImplementedError
-    
-    optimization_details = {'Loss':[],
-                            'L_b':[], 'L_r':[], 
-                           }
+
+    optimization_details = {'Loss': [],
+                            'L_b': [], 'L_r': [],
+                            }
     for itr in range(no_iterations):
         # feed data to network
         Y_u_pred = model(X_u)  # (no_of_points, 1)
-        
+
         if itr % save_data_frequency == 0:
             J_u = utilities.calculate_j_u(model, Y_u_pred)
-            
+
         Y_r_pred = model(X_r)
         residual = calculate_residual(Y_r_pred, X_r)
-        
+
         if itr % save_data_frequency == 0:
-            J_r = utilities.calculate_j_r(model, residual)
-            
-        L_r = torch.mean((residual - Y_r_tor)**2)
-        L_b = torch.mean((Y_u_pred - Y_u_tor)**2)
+            J_r = utilities.calculate_j_r(model, residual, device)
+
+        L_r = torch.mean((residual - Y_r_tor) ** 2)
+        L_b = torch.mean((Y_u_pred - Y_u_tor) ** 2)
         loss = L_b + L_r
-        
+
         # optimizer step
         optimizer.zero_grad()
         loss.backward()
-        optimizer.step() 
+        optimizer.step()
         scheduler.step()
-        
+
         # log all details  
-        optimization_details['Loss'].append(loss.detach().numpy().item())
-        optimization_details['L_r'].append(L_b.detach().numpy().item())
-        optimization_details['L_b'].append(L_r.detach().numpy().item())
-        
+        optimization_details['Loss'].append(loss.detach().cpu().numpy().item())
+        optimization_details['L_r'].append(L_b.detach().cpu().numpy().item())
+        optimization_details['L_b'].append(L_r.detach().cpu().numpy().item())
+
         # Pickle the Jacobians
         if itr % save_data_frequency == 0:
             pickle.dump([J_u, J_r], open("{}/Ju_Jr_{}.p".format(
-                                        save_data_location, itr), 'wb'))  
-            save_model(model, itr, save_data_location)   
+                save_data_location, itr), 'wb'))
+            save_model(model, itr, save_data_location)
     return optimization_details
