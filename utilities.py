@@ -15,16 +15,16 @@ def calculate_j_u(model, Y_u_pred):
     J_u = torch.zeros(size=(n_params, n_u_batchsize))
     for ind in range(n_u_batchsize):
         grad = torch.autograd.grad(
-                Y_u_pred[ind, 0], model.parameters(), 
-                grad_outputs=torch.ones_like(Y_u_pred[ind, 0]),
-                retain_graph=True,
-                create_graph=False
-                )
+            Y_u_pred[ind, 0], model.parameters(),
+            grad_outputs=torch.ones_like(Y_u_pred[ind, 0]),
+            retain_graph=True,
+            create_graph=False
+        )
         g_flat = []
         for g_component in grad:
             g_flat.append(g_component.view(-1))
         g_flat = torch.cat(g_flat)
-        J_u[:, ind] = g_flat 
+        J_u[:, ind] = g_flat
     return J_u
 
 
@@ -48,7 +48,7 @@ def calculate_j_r(model, residual, device):
             else:
                 g_flat.append(torch.zeros(size=param.size(), device=device).view(-1))
         g_flat = torch.cat(g_flat)
-        J_r[:, ind] = g_flat 
+        J_r[:, ind] = g_flat
     return J_r
 
 
@@ -61,7 +61,16 @@ def calculate_eigenvalues_from_j(j1, j2):
     """
     j1_np = j1.detach().numpy()
     j2_np = j2.detach().numpy()
-    K_matrix = j1_np.T@j2_np
+    K_12 = j1_np @ j2_np.T
+    K_matrix = np.concatenate(
+        [np.concatenate([j1_np @ j1_np.T, K_12], axis=0),
+         np.concatenate([K_12, j2_np @ j2_np.T], axis=0)],
+        axis=1)
     eigs = np.linalg.eigvalsh(K_matrix)
-    # Return eigenvalues in descenind order
-    return eigs[::-1]
+    del K_matrix  # Hogs memory
+    del K_12  # Hogs memory
+    # Return eigenvalues in descending order
+    eigs_11 = np.linalg.eigvalsh(j1_np @ j1_np.T)
+    eigs_22 = np.linalg.eigvalsh(j2_np @ j2_np.T)
+
+    return eigs[::-1], eigs_11[::-1], eigs_22[::-1]
