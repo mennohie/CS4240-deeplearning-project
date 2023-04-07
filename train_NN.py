@@ -49,7 +49,8 @@ def train_nn_model(model: torch.nn.Module, train_data: tuple,
                    no_iterations: int, device,
                    optimizer_details: dict = {'opt': 'sgd', 'lr': 1e-5},
                    save_data_location: str = '.',
-                   save_data_frequency: int = 100):
+                   save_data_frequency: int = 100,
+                   save_eigs_only: bool = True):
     """ The function that trains a model and saves the Jacobians.
     
     Parameters
@@ -71,6 +72,8 @@ def train_nn_model(model: torch.nn.Module, train_data: tuple,
             Path to folder to save the model parameters and jacobians
         save_data_frequency
             The frequency with whcih details are saved onto the hard disk
+        save_eigs_only
+            Saves the eigenvalues of K_uu, K_rr and K only (to save storage)
     
     Returns
         optimization_details
@@ -130,9 +133,15 @@ def train_nn_model(model: torch.nn.Module, train_data: tuple,
         optimization_details['L_r'].append(L_b.detach().cpu().numpy().item())
         optimization_details['L_b'].append(L_r.detach().cpu().numpy().item())
 
-        # Pickle the Jacobians
+        # Pickle the Jacobians' eigenvalues [saves storage]
         if itr % save_data_frequency == 0:
-            pickle.dump([J_u, J_r], open("{}/Ju_Jr_{}.p".format(
-                save_data_location, itr), 'wb'))
+            # Save eigenvalues only
+            if save_eigs_only:
+                e_uu, e_rr, e_k = utilities.calculate_eigenvalues(J_u, J_r)            
+                np.savez_compressed("{}/eigenvalues_itr_{}".format(save_data_location, itr),
+                                    eig_uu=e_uu, eig_rr=e_rr, eig_K=e_k)
+            else:
+                np.savez_compressed("{}/J_matrices_itr_{}".format(save_data_location, itr),
+                                    J_u=J_u, J_r=J_r)
             save_model(model, itr, save_data_location)
     return optimization_details

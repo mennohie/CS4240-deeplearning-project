@@ -46,31 +46,27 @@ def calculate_j_r(model, residual, device):
             if param.grad is not None:
                 g_flat.append(param.grad.view(-1))
             else:
-                g_flat.append(torch.zeros(size=param.size(), device=device).view(-1))
+                g_flat.append(torch.zeros(size=param.size(),
+                                          device=device).view(-1))
         g_flat = torch.cat(g_flat)
         J_r[:, ind] = g_flat
     return J_r
 
 
-def calculate_eigenvalues_from_j(j1, j2):
+def calculate_eigenvalues(ju, jr):
     """ Calculates the eigenvalues of the kernel matrix.
     K = j1.T@j2,
-    make sure that j1 has the shape (n_model_parameters, batch_size)
-    returns the eigenvalues in descending order for a (batch_size1, batch_size2)
-    matrix
+    WARNING : 
+        Make sure that ju and jr have the shape (n_model_parameters, batch_size)
+    
+    Returns
+        The eigenvalues in descending order for K_uu, K_rr and K.
+        See paper Fig 1.
     """
-    j1_np = j1.detach().numpy()
-    j2_np = j2.detach().numpy()
-    K_12 = j1_np @ j2_np.T
-    K_matrix = np.concatenate(
-        [np.concatenate([j1_np @ j1_np.T, K_12], axis=0),
-         np.concatenate([K_12, j2_np @ j2_np.T], axis=0)],
-        axis=1)
-    eigs = np.linalg.eigvalsh(K_matrix)
-    del K_matrix  # Hogs memory
-    del K_12  # Hogs memory
-    # Return eigenvalues in descending order
-    eigs_11 = np.linalg.eigvalsh(j1_np @ j1_np.T)
-    eigs_22 = np.linalg.eigvalsh(j2_np @ j2_np.T)
-
-    return eigs[::-1], eigs_11[::-1], eigs_22[::-1]
+    k_uu_eigvals = np.linalg.eigvalsh(ju.T@ju)
+    k_rr_eigvals = np.linalg.eigvalsh(jr.T@jr)
+    # The main J matrix ->  The shape is (2* batch_size, no_of_parameters) 
+    J = np.vstack((ju.T, jr.T))
+    # Operations are correct -> This was done to maintain correct dimensionality
+    K_eigvals = np.linalg.eigvalsh(J@J.T)
+    return k_uu_eigvals[::-1], k_rr_eigvals[::-1], K_eigvals[::-1]
