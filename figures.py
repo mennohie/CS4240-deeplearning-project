@@ -70,7 +70,7 @@ def run_NTK(a, device, seed=1, max_iterations=100, neurons=500, no_of_data_sampl
     # load the jacobian matrices from hard disk
     J_u, J_r = pickle.load(open("{}/Ju_Jr_{}.p".format(save_data_location, 0),
                                 'rb'))
-    eigs = utilities.calculate_eigenvalues_from_j(J_u, J_r)
+    eigs = utilities.calculate_eigenvalues(J_u, J_r)
     return eigs
 
 
