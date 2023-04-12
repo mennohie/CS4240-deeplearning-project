@@ -130,8 +130,8 @@ def train_nn_model(model: torch.nn.Module, train_data: tuple,
 
         # log all details  
         optimization_details['Loss'].append(loss.detach().cpu().numpy().item())
-        optimization_details['L_r'].append(L_b.detach().cpu().numpy().item())
-        optimization_details['L_b'].append(L_r.detach().cpu().numpy().item())
+        optimization_details['L_r'].append(L_r.detach().cpu().numpy().item())
+        optimization_details['L_b'].append(L_b.detach().cpu().numpy().item())
 
         # Pickle the Jacobians' eigenvalues [saves storage]
         if itr % save_data_frequency == 0:
